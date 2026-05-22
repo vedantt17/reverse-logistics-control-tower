@@ -9,7 +9,7 @@
 | Scrap removal SLA breach rate | 73.9 | percent | 2026-05-22 |
 | PO approval cycle time | 4.6 | days | 2026-05-22 |
 | Open PO count | 277.0 | POs | 2026-05-22 |
-| Truck on-time pickup rate | 11.9 | percent | 2026-05-22 |
+| Truck on-time pickup rate | 14.3 | percent | 2026-05-22 |
 | Truck on-time delivery rate | 10.7 | percent | 2026-05-22 |
 | Material request fulfillment cycle time | 8.5 | days | 2026-05-22 |
 | High-priority request backlog | 132.0 | requests | 2026-05-22 |

@@ -6,6 +6,7 @@ import argparse
 
 from src.config import DEFAULT_AS_OF_DATE, DEFAULT_SEED, ensure_directories
 from src.database import build_database
+from src.excel_workbook import build_excel_workbook
 from src.generate_data import generate_raw_data
 from src.kpis import export_dashboard_tables
 from src.validate import run_validation_report
@@ -54,9 +55,11 @@ def main() -> None:
     for name, count in export_summary.items():
         print(f"  {name}: {count:,} rows")
 
+    workbook_path = build_excel_workbook()
+    print(f"Excel operations workbook refreshed: {workbook_path}")
+
     print("Pipeline complete.")
 
 
 if __name__ == "__main__":
     main()
-

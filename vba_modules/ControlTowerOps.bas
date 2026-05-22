@@ -3,6 +3,21 @@ Option Explicit
 
 Private Const EXPORT_FOLDER As String = "outputs\dashboard_exports\"
 
+Private Function ProjectRoot() As String
+    Dim workbookPath As String
+    Dim excelOutputSuffix As String
+
+    workbookPath = ThisWorkbook.Path
+    excelOutputSuffix = Application.PathSeparator & "outputs" & Application.PathSeparator & "excel"
+
+    If Len(workbookPath) >= Len(excelOutputSuffix) _
+        And LCase$(Right$(workbookPath, Len(excelOutputSuffix))) = LCase$(excelOutputSuffix) Then
+        ProjectRoot = Left$(workbookPath, Len(workbookPath) - Len(excelOutputSuffix))
+    Else
+        ProjectRoot = workbookPath
+    End If
+End Function
+
 Private Function EnsureSheet(ByVal sheetName As String) As Worksheet
     On Error Resume Next
     Set EnsureSheet = ThisWorkbook.Worksheets(sheetName)
@@ -15,7 +30,7 @@ Private Function EnsureSheet(ByVal sheetName As String) As Worksheet
 End Function
 
 Private Function CsvPath(ByVal fileName As String) As String
-    CsvPath = ThisWorkbook.Path & Application.PathSeparator & EXPORT_FOLDER & fileName
+    CsvPath = ProjectRoot() & Application.PathSeparator & EXPORT_FOLDER & fileName
 End Function
 
 Private Function LastUsedRow(ByVal ws As Worksheet) As Long
@@ -176,12 +191,15 @@ End Sub
 
 Public Sub ExportLeadershipReport()
     Dim reportWs As Worksheet
+    Dim reportFolder As String
     Dim reportPath As String
 
     GenerateWeeklyOpsSummary
     Set reportWs = EnsureSheet("Weekly Summary")
-    reportPath = ThisWorkbook.Path & Application.PathSeparator & "reports" & Application.PathSeparator & _
-        "weekly_leadership_report_" & Format(Date, "yyyymmdd") & ".pdf"
+    reportFolder = ProjectRoot() & Application.PathSeparator & "reports"
+    If Dir(reportFolder, vbDirectory) = vbNullString Then MkDir reportFolder
+
+    reportPath = reportFolder & Application.PathSeparator & "weekly_leadership_report_" & Format(Date, "yyyymmdd") & ".pdf"
 
     reportWs.ExportAsFixedFormat Type:=xlTypePDF, Filename:=reportPath, Quality:=xlQualityStandard, _
         IncludeDocProperties:=True, IgnorePrintAreas:=False, OpenAfterPublish:=False
@@ -237,4 +255,3 @@ Public Sub CreatePOTrackerView()
     ActiveWindow.SplitRow = 1
     ActiveWindow.FreezePanes = True
 End Sub
-

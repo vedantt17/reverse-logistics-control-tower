@@ -52,8 +52,14 @@ po_cycle AS (
 ),
 truck_rates AS (
     SELECT
-        100.0 * SUM(CASE WHEN actual_pickup IS NOT NULL AND datetime(actual_pickup) <= datetime(scheduled_pickup) THEN 1 ELSE 0 END)
-            / NULLIF(SUM(CASE WHEN actual_pickup IS NOT NULL AND truck_status <> 'Canceled' THEN 1 ELSE 0 END), 0) AS pickup_rate,
+        100.0 * SUM(CASE WHEN actual_pickup IS NOT NULL
+                           AND datetime(actual_pickup) >= datetime(scheduled_pickup)
+                           AND datetime(actual_pickup) <= datetime(scheduled_pickup, '+2 hours')
+                          THEN 1 ELSE 0 END)
+            / NULLIF(SUM(CASE WHEN actual_pickup IS NOT NULL
+                                AND truck_status <> 'Canceled'
+                                AND datetime(actual_pickup) >= datetime(scheduled_pickup)
+                               THEN 1 ELSE 0 END), 0) AS pickup_rate,
         100.0 * SUM(CASE WHEN actual_delivery IS NOT NULL AND datetime(actual_delivery) <= datetime(scheduled_delivery) THEN 1 ELSE 0 END)
             / NULLIF(SUM(CASE WHEN actual_delivery IS NOT NULL AND truck_status <> 'Canceled' THEN 1 ELSE 0 END), 0) AS delivery_rate
     FROM truck_schedules
@@ -156,7 +162,8 @@ SELECT
     COUNT(*) AS truck_count,
     SUM(CASE WHEN truck_status = 'Canceled' THEN 1 ELSE 0 END) AS canceled_trucks,
     SUM(CASE WHEN actual_pickup IS NULL AND truck_status IN ('Scheduled', 'Delayed') THEN 1 ELSE 0 END) AS missing_pickups,
-    ROUND(AVG(CASE WHEN actual_pickup IS NOT NULL THEN (julianday(actual_pickup) - julianday(scheduled_pickup)) * 24 END), 1) AS avg_pickup_delay_hours,
+    SUM(CASE WHEN actual_pickup IS NOT NULL AND datetime(actual_pickup) < datetime(scheduled_pickup) THEN 1 ELSE 0 END) AS early_pickup_dq_count,
+    ROUND(AVG(CASE WHEN actual_pickup IS NOT NULL AND datetime(actual_pickup) >= datetime(scheduled_pickup) THEN (julianday(actual_pickup) - julianday(scheduled_pickup)) * 24 END), 1) AS avg_pickup_delay_hours,
     ROUND(AVG(CASE WHEN actual_delivery IS NOT NULL THEN (julianday(actual_delivery) - julianday(scheduled_delivery)) * 24 END), 1) AS avg_delivery_delay_hours
 FROM truck_schedules
 GROUP BY strftime('%Y-W%W', scheduled_pickup)
@@ -196,43 +203,102 @@ GROUP BY region, age_bucket
 ORDER BY region, age_bucket;
 
 CREATE VIEW vw_site_exception_table AS
-WITH mapped AS (
-    SELECT e.*, im.origin_site AS site_id
+WITH stg_movement_dedup AS (
+    SELECT *
+    FROM (
+        SELECT
+            sim.*,
+            ROW_NUMBER() OVER (PARTITION BY sim.movement_id ORDER BY sim.rowid) AS rn
+        FROM stg_inventory_movements sim
+    )
+    WHERE rn = 1
+),
+stg_po_dedup AS (
+    SELECT *
+    FROM (
+        SELECT
+            spo.*,
+            ROW_NUMBER() OVER (PARTITION BY spo.po_id ORDER BY spo.rowid) AS rn
+        FROM stg_purchase_orders spo
+    )
+    WHERE rn = 1
+),
+stg_truck_dedup AS (
+    SELECT *
+    FROM (
+        SELECT
+            st.*,
+            ROW_NUMBER() OVER (PARTITION BY st.truck_id ORDER BY st.rowid) AS rn
+        FROM stg_truck_schedules st
+    )
+    WHERE rn = 1
+),
+mapped AS (
+    SELECT
+        e.*,
+        COALESCE(im.origin_site, sim.origin_site) AS site_id,
+        NULL AS fallback_region
     FROM exceptions e
-    JOIN inventory_movements im
+    LEFT JOIN inventory_movements im
       ON e.related_entity_type = 'inventory_movement'
      AND e.related_entity_id = im.movement_id
+    LEFT JOIN stg_movement_dedup sim
+      ON e.related_entity_type = 'inventory_movement'
+     AND e.related_entity_id = sim.movement_id
+    WHERE e.related_entity_type = 'inventory_movement'
     UNION ALL
-    SELECT e.*, im.origin_site AS site_id
+    SELECT
+        e.*,
+        COALESCE(im.origin_site, sim.origin_site) AS site_id,
+        COALESCE(po.region, spo.region) AS fallback_region
     FROM exceptions e
-    JOIN purchase_orders po
+    LEFT JOIN purchase_orders po
       ON e.related_entity_type = 'purchase_order'
      AND e.related_entity_id = po.po_id
+    LEFT JOIN stg_po_dedup spo
+      ON e.related_entity_type = 'purchase_order'
+     AND e.related_entity_id = spo.po_id
     LEFT JOIN inventory_movements im
-      ON im.movement_id = po.linked_movement_id
+      ON im.movement_id = COALESCE(po.linked_movement_id, spo.linked_movement_id)
+    LEFT JOIN stg_movement_dedup sim
+      ON sim.movement_id = COALESCE(po.linked_movement_id, spo.linked_movement_id)
+    WHERE e.related_entity_type = 'purchase_order'
     UNION ALL
-    SELECT e.*, t.origin_site AS site_id
+    SELECT
+        e.*,
+        COALESCE(t.origin_site, st.origin_site) AS site_id,
+        NULL AS fallback_region
     FROM exceptions e
-    JOIN truck_schedules t
+    LEFT JOIN truck_schedules t
       ON e.related_entity_type = 'truck_schedule'
      AND e.related_entity_id = t.truck_id
+    LEFT JOIN stg_truck_dedup st
+      ON e.related_entity_type = 'truck_schedule'
+     AND e.related_entity_id = st.truck_id
+    WHERE e.related_entity_type = 'truck_schedule'
     UNION ALL
-    SELECT e.*, r.site_id
+    SELECT
+        e.*,
+        r.site_id,
+        NULL AS fallback_region
     FROM exceptions e
     JOIN scrap_removal_requests r
       ON e.related_entity_type = 'scrap_removal'
      AND e.related_entity_id = r.removal_id
     UNION ALL
-    SELECT e.*, mr.site_id
+    SELECT
+        e.*,
+        mr.site_id,
+        NULL AS fallback_region
     FROM exceptions e
     JOIN material_requests mr
       ON e.related_entity_type = 'material_request'
      AND e.related_entity_id = mr.request_id
 )
 SELECT
-    s.region,
-    s.site_id,
-    s.site_name,
+    COALESCE(s.region, mapped.fallback_region, 'Unmapped') AS region,
+    COALESCE(s.site_id, 'UNMAPPED') AS site_id,
+    COALESCE(s.site_name, 'Unmapped / Unknown Site') AS site_name,
     COUNT(*) AS exception_count,
     SUM(CASE WHEN mapped.closed_date IS NULL THEN 1 ELSE 0 END) AS open_exception_count,
     SUM(CASE WHEN mapped.severity = 'Critical' THEN 1 ELSE 0 END) AS critical_count,
@@ -240,8 +306,11 @@ SELECT
     SUM(CASE WHEN mapped.severity = 'Medium' THEN 1 ELSE 0 END) AS medium_count,
     SUM(CASE WHEN mapped.severity = 'Low' THEN 1 ELSE 0 END) AS low_count
 FROM mapped
-JOIN sites s ON s.site_id = mapped.site_id
-GROUP BY s.region, s.site_id, s.site_name
+LEFT JOIN sites s ON s.site_id = mapped.site_id
+GROUP BY
+    COALESCE(s.region, mapped.fallback_region, 'Unmapped'),
+    COALESCE(s.site_id, 'UNMAPPED'),
+    COALESCE(s.site_name, 'Unmapped / Unknown Site')
 ORDER BY open_exception_count DESC, critical_count DESC;
 
 CREATE VIEW vw_high_priority_material_requests AS
@@ -402,4 +471,3 @@ FROM vw_po_tracker
 WHERE approval_status IN ('Pending', 'Delayed')
    OR accounting_status IN ('Disputed', 'Accrual Needed')
 ORDER BY created_date;
-

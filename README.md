@@ -96,6 +96,7 @@ The pipeline will:
 5. Run validation checks and reconciliation views.
 6. Export dashboard-ready CSVs.
 7. Write KPI and validation markdown reports.
+8. Refresh the formatted Excel operations workbook.
 
 ## KPI Definitions
 
@@ -107,7 +108,7 @@ The pipeline will:
 | Scrap removal SLA breach rate | Percent of non-canceled removals exceeding partner SLA. |
 | PO approval cycle time | Average days between PO creation and approval. |
 | Open PO count | POs pending/delayed approval or with disputed/accrual-needed accounting status. |
-| Truck on-time pickup rate | Percent of trucks with actual pickup at or before scheduled pickup. |
+| Truck on-time pickup rate | Percent of valid non-canceled pickups completed from scheduled time through the two-hour pickup window; early-pickup data quality defects are excluded. |
 | Truck on-time delivery rate | Percent of trucks with actual delivery at or before scheduled delivery. |
 | Material request fulfillment cycle time | Average days between request date and fulfilled date for valid fulfilled requests. |
 | High-priority request backlog | Critical or High requests not fulfilled or canceled. |
@@ -126,7 +127,7 @@ Sample values from the generated run with `--as-of-date 2026-05-22`:
 | Average removal aging | 45.0 days |
 | Scrap removal SLA breach rate | 73.9% |
 | Open PO count | 277 |
-| Truck on-time pickup rate | 11.9% |
+| Truck on-time pickup rate | 14.3% |
 | Truck on-time delivery rate | 10.7% |
 | High-priority request backlog | 132 |
 | At-risk inventory value | 22,757,237.75 |
@@ -219,5 +220,4 @@ Primary export tables:
 - `docs/DATA_DICTIONARY.md`: table and field definitions.
 - `docs/BUSINESS_REQUIREMENTS.md`: stakeholders, assumptions, success metrics, and limitations.
 - `docs/DASHBOARD_SPEC.md`: Power BI/Tableau-ready dashboard design.
-
 
