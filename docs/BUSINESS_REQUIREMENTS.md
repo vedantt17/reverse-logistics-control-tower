@@ -62,7 +62,7 @@ This project simulates that environment using fictional synthetic data and a rep
 - Validation report identifies expected defects.
 - Dashboard-ready exports are refreshed successfully.
 - Excel workbook and VBA modules support the operations workflow.
-- README includes resume-ready, truthful project bullets.
+- Reports and exports are clearly labeled and structured for stakeholder review.
 
 ## Limitations
 

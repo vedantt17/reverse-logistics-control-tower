@@ -1,7 +1,5 @@
 # Reverse Logistics PO & Inventory Removal Control Tower
 
-Synthetic operations analytics portfolio project for a Business Analyst, Operations and Materials role.
-
 This project simulates a reverse logistics control tower for returned consumer electronics across North America, Europe, and Asia Pacific. It covers internal sites, 3P partners, purchase orders, inventory movements, truck scheduling, scrap inventory removal, material requests, exception management, KPI reporting, and backlog reduction.
 
 All data is fictional and generated synthetically. The project does not use Amazon branding, internal data, proprietary names, or real operational records.
@@ -222,26 +220,4 @@ Primary export tables:
 - `docs/BUSINESS_REQUIREMENTS.md`: stakeholders, assumptions, success metrics, and limitations.
 - `docs/DASHBOARD_SPEC.md`: Power BI/Tableau-ready dashboard design.
 
-## Why This Is Resume-Credible
-
-This is not a toy dashboard. It demonstrates an end-to-end analyst workflow:
-
-- Operational data modeling with staging, normalized facts/dimensions, and SQL views.
-- Synthetic but realistic data quality defects and reconciliation logic.
-- KPI definitions tied to reverse logistics decisions.
-- Excel/VBA workflow for recurring reporting and ad-hoc leadership requests.
-- BI-ready outputs that can feed Power BI, Tableau, or Excel.
-- Clear SOP documentation for how an operations analyst would run the process.
-
-## Resume Bullet Options
-
-Best ATS-targeted option:
-
-- Built a synthetic reverse logistics control tower using Python, SQL/SQLite, pandas, and Excel VBA to monitor PO status, inventory movements, truck scheduling, scrap removal, KPI reporting, and backlog reduction across fictional 1P/3P sites and partners.
-
-Alternate options:
-
-- Developed an end-to-end operations analytics pipeline for returned electronics, generating 6,000+ synthetic records, normalizing data in SQLite, validating PO/movement/truck/removal exceptions, and exporting Power BI/Tableau-ready KPI tables.
-
-- Created an Excel/VBA operations workbook with refresh, region filtering, overdue removal flagging, weekly summary generation, and leadership report export for reverse logistics PO tracking, material requests, partner SLA performance, and inventory backlog analysis.
 
