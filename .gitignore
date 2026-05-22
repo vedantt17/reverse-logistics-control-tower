@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Generated runtime artifacts can be recreated with python run_pipeline.py.
+db/*.sqlite
+data/raw/*.csv
+data/processed/*.csv
+outputs/dashboard_exports/*.csv
+reports/*.csv
+
+# Local spreadsheet build helper dependency link used only during workbook creation.
+tools/node_modules/
